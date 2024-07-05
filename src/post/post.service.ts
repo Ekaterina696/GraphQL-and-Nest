@@ -1,26 +1,32 @@
 import { Injectable } from '@nestjs/common';
-import { CreatePostInput } from './dto/create-post.input';
-import { UpdatePostInput } from './dto/update-post.input';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Post } from './entities/post.entity';
+import { User } from 'src/user/entities/user.entity';
 
 @Injectable()
 export class PostService {
-  create(createPostInput: CreatePostInput) {
-    return 'This action adds a new post';
+  constructor(
+    @InjectRepository(Post)
+    private readonly postRepository: Repository<Post>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+  ) {}
+
+  async findAll(): Promise<Post[]> {
+    return this.postRepository.find({ relations: ['author'] });
   }
 
-  findAll() {
-    return `This action returns all post`;
+  async findOne(id: number): Promise<Post> {
+    return this.postRepository.findOne({ where: { id }, relations: ['author'] });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} post`;
-  }
-
-  update(id: number, updatePostInput: UpdatePostInput) {
-    return `This action updates a #${id} post`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} post`;
+  async create(title: string, content: string, authorId: number): Promise<Post> {
+    const user = await this.userRepository.findOne({ where: { id: authorId } });
+    if (!user) {
+      throw new Error('User not found');
+    }
+    const post = this.postRepository.create({ title, content, author: user });
+    return this.postRepository.save(post);
   }
 }
